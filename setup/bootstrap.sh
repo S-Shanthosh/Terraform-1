@@ -69,6 +69,8 @@ add_to_bashrc "export TF_STORAGE_BUCKET=$STORAGE_BUCKET"
 add_to_bashrc "export TF_SETUP_DIR=$SETUP_DIR"
 add_to_bashrc "# Terraform CloudShell persistence"
 add_to_bashrc "echo '⚠️  Remember to run \$TF_SETUP_DIR/tf-save.sh before exiting!'"
+add_to_bashrc "source \$TF_SETUP_DIR/tf-start.sh"
+
 
 export PATH=$PATH:$HOME/bin
 export TF_DATA_DIR=$TF_DATA_DIR
