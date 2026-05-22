@@ -60,4 +60,3 @@ export -f terraform
 
 echo ""
 echo "✅ Restore complete! Terraform is ready."
-echo "⚠️  Remember to run tf-save.sh before exiting CloudShell!"
