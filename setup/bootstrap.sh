@@ -32,7 +32,7 @@ if [[ -z "$STATE_BUCKET" ]]; then
   exit 1
 fi
 LOCK_TABLE="${STATE_BUCKET}-locks"
-STORAGE_BUCKET="$STATE_BUCKET"   # same bucket used for session persistence
+STORAGE_BUCKET="$STATE_BUCKET"
 
 echo "  → State bucket     : $STATE_BUCKET"
 echo "  → Lock table       : $LOCK_TABLE"
@@ -79,8 +79,6 @@ export TF_DATA_DIR=$TF_DATA_DIR
 export TF_STORAGE_BUCKET=$STORAGE_BUCKET
 export TF_SETUP_DIR=$SETUP_DIR
 mkdir -p "$TF_DATA_DIR"
-
-
 
 # ── Step 4: Create S3 state bucket ────────────────────────────────────────────
 echo "🪣 Creating S3 state bucket: $STATE_BUCKET..."
@@ -170,13 +168,18 @@ terraform {
 BACKENDEOF
 echo "✅ backend.tf updated"
 
-# ── Step 8: terraform init ────────────────────────────────────────────────────
+# ── Step 8: Set permissions on all setup scripts ───────────────────────────────
+echo "📂 Setting up persistence scripts..."
+chmod +x "$SETUP_DIR"/*.sh
+echo "✅ Persistence scripts ready"
+
+# ── Step 9: terraform init ────────────────────────────────────────────────────
 echo "🚀 Running terraform init..."
 cd "$INFRA_DIR"
 terraform init
 echo "✅ Terraform initialized"
 
-# ── Step 9: Save environment to S3 immediately ────────────────────────────────
+# ── Step 10: Save environment to S3 immediately ───────────────────────────────
 echo "💾 Saving environment to S3..."
 STORAGE_BUCKET="$STORAGE_BUCKET" bash "$SETUP_DIR/tf-save.sh"
 
@@ -185,7 +188,7 @@ echo ""
 echo "╔══════════════════════════════════════════════════╗"
 echo "║   ✅ Bootstrap complete!                         ║"
 echo "║                                                  ║"
-echo "║   cd $INFRA_DIR"
-echo "║   terraform plan -var-file=environments/dev/dev.tfvars"
+echo "║   cd $INFRA_DIR                                  ║"
+echo "║   terraform plan -var-file=environments/dev/dev.tfvars ║"
 echo "╚══════════════════════════════════════════════════╝"
 echo ""
