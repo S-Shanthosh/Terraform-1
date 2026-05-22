@@ -4,7 +4,7 @@
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/S-Shanthosh/Terraform.git ~/terraform-demo
+git clone https://github.com/S-Shanthosh/Terraform-1.git ~/terraform-demo
 cd ~/terraform-demo
 
 # 2. Run bootstrap (only once per account)
