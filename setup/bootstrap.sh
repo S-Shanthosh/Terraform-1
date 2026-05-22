@@ -58,19 +58,21 @@ fi
 # ── Step 3: Configure .bashrc (idempotent) ────────────────────────────────────
 echo "🔧 Configuring shell environment..."
 
-add_to_bashrc() {
-  local line="$1"
-  grep -qxF "$line" "$HOME/.bashrc" || echo "$line" >> "$HOME/.bashrc"
-}
+if grep -q "__TF_BOOTSTRAP_DONE__" "$HOME/.bashrc"; then
+  echo "✅ .bashrc already configured — skipping."
+else
+  cat >> "$HOME/.bashrc" << BASHRCEOF
 
-add_to_bashrc "export PATH=\$PATH:~/bin"
-add_to_bashrc "export TF_DATA_DIR=$TF_DATA_DIR"
-add_to_bashrc "export TF_STORAGE_BUCKET=$STORAGE_BUCKET"
-add_to_bashrc "export TF_SETUP_DIR=$SETUP_DIR"
-add_to_bashrc "# Terraform CloudShell persistence"
-add_to_bashrc "echo '⚠️  Remember to run \$TF_SETUP_DIR/tf-save.sh before exiting!'"
-add_to_bashrc "source \$TF_SETUP_DIR/tf-start.sh"
-
+# __TF_BOOTSTRAP_DONE__
+export PATH=\$PATH:~/bin
+export TF_DATA_DIR=$TF_DATA_DIR
+export TF_STORAGE_BUCKET=$STORAGE_BUCKET
+export TF_SETUP_DIR=$SETUP_DIR
+echo '⚠️  Remember to run \$TF_SETUP_DIR/tf-save.sh before exiting!'
+source \$TF_SETUP_DIR/tf-start.sh
+BASHRCEOF
+  echo "✅ Shell environment configured"
+fi
 
 export PATH=$PATH:$HOME/bin
 export TF_DATA_DIR=$TF_DATA_DIR
@@ -78,7 +80,7 @@ export TF_STORAGE_BUCKET=$STORAGE_BUCKET
 export TF_SETUP_DIR=$SETUP_DIR
 mkdir -p "$TF_DATA_DIR"
 
-echo "✅ Shell environment configured"
+
 
 # ── Step 4: Create S3 state bucket ────────────────────────────────────────────
 echo "🪣 Creating S3 state bucket: $STATE_BUCKET..."
