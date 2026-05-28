@@ -1,0 +1,57 @@
+version: 0.2
+
+env:
+  variables:
+    TF_VERSION: "1.7.5"
+    TF_DATA_DIR: "/tmp/.terraform"
+    AWS_DEFAULT_REGION: "ap-south-1"
+
+phases:
+  install:
+    commands:
+      - echo "Installing Terraform ${TF_VERSION}"
+      - curl -fsSL https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip -o /tmp/terraform.zip
+      - unzip -o /tmp/terraform.zip -d /usr/local/bin/
+      - terraform version
+
+  pre_build:
+    commands:
+      - echo "Moving into Infra directory"
+      - cd Infra
+      - echo "Initializing Terraform with remote state"
+      - terraform init \
+          -backend-config="bucket=shanthosh-terraform-state-management" \
+          -backend-config="key=infra/terraform.tfstate" \
+          -backend-config="region=ap-south-1" \
+          -backend-config="dynamodb_table=shanthosh-terraform-state-management-locks" \
+          -backend-config="encrypt=true" \
+          -reconfigure \
+          -input=false
+
+  build:
+    commands:
+      - cd Infra
+      - echo "=========================================="
+      - echo "Starting Terraform Auto-Destroy"
+      - echo "Triggered by EventBridge - $(date)"
+      - echo "=========================================="
+
+      - echo "--- Destroying DEV environment ---"
+      - terraform destroy \
+          -auto-approve \
+          -var-file=environments/dev/dev.tfvars \
+          -input=false || echo "DEV destroy failed or no state found, continuing..."
+
+      - echo "--- Destroying PROD environment ---"
+      - terraform destroy \
+          -auto-approve \
+          -var-file=environments/prod/prod.tfvars \
+          -input=false || echo "PROD destroy failed or no state found, continuing..."
+
+      - echo "=========================================="
+      - echo "Auto-Destroy complete - $(date)"
+      - echo "=========================================="
+
+  post_build:
+    commands:
+      - echo "Build status - ${CODEBUILD_BUILD_SUCCEEDING}"
