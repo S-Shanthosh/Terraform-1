@@ -16,41 +16,29 @@ phases:
 
   pre_build:
     commands:
-      - echo "Moving into Infra directory"
-      - cd Infra
-      - echo "Initializing Terraform with remote state"
-      - terraform init \
-          -backend-config="bucket=shanthosh-terraform-state-management" \
-          -backend-config="key=infra/terraform.tfstate" \
-          -backend-config="region=ap-south-1" \
-          -backend-config="dynamodb_table=shanthosh-terraform-state-management-locks" \
-          -backend-config="encrypt=true" \
-          -reconfigure \
+      - terraform init
+          -backend-config="bucket=shanthosh-terraform-state-management"
+          -backend-config="key=infra/terraform.tfstate"
+          -backend-config="region=ap-south-1"
+          -backend-config="dynamodb_table=shanthosh-terraform-state-management-locks"
+          -backend-config="encrypt=true"
+          -reconfigure
           -input=false
+    working_directory: Infra
 
   build:
     commands:
-      - cd Infra
       - echo "=========================================="
-      - echo "Starting Terraform Auto-Destroy"
-      - echo "Triggered by EventBridge - $(date)"
+      - echo "Starting Terraform Auto-Destroy - $(date)"
       - echo "=========================================="
-
       - echo "--- Destroying DEV environment ---"
-      - terraform destroy \
-          -auto-approve \
-          -var-file=environments/dev/dev.tfvars \
-          -input=false || echo "DEV destroy failed or no state found, continuing..."
-
+      - terraform destroy -auto-approve -var-file=environments/dev/dev.tfvars -input=false || echo "DEV destroy failed or no state, continuing..."
       - echo "--- Destroying PROD environment ---"
-      - terraform destroy \
-          -auto-approve \
-          -var-file=environments/prod/prod.tfvars \
-          -input=false || echo "PROD destroy failed or no state found, continuing..."
-
+      - terraform destroy -auto-approve -var-file=environments/prod/prod.tfvars -input=false || echo "PROD destroy failed or no state, continuing..."
       - echo "=========================================="
       - echo "Auto-Destroy complete - $(date)"
       - echo "=========================================="
+    working_directory: Infra
 
   post_build:
     commands:
