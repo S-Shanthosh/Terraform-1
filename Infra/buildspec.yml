@@ -16,14 +16,7 @@ phases:
 
   pre_build:
     commands:
-      - terraform init
-          -backend-config="bucket=shanthosh-terraform-state-management"
-          -backend-config="key=infra/terraform.tfstate"
-          -backend-config="region=ap-south-1"
-          -backend-config="dynamodb_table=shanthosh-terraform-state-management-locks"
-          -backend-config="encrypt=true"
-          -reconfigure
-          -input=false
+      - terraform init -backend-config="bucket=shanthosh-terraform-state-management" -backend-config="key=infra/terraform.tfstate" -backend-config="region=ap-south-1" -backend-config="dynamodb_table=shanthosh-terraform-state-management-locks" -backend-config="encrypt=true" -reconfigure -input=false
     working_directory: Infra
 
   build:
