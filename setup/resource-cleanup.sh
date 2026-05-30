@@ -245,7 +245,22 @@ if aws codebuild batch-get-projects \
     --no-cli-pager \
     --query 'projects[0].name' \
     --output text 2>/dev/null | grep -q "${PROJECT_NAME}"; then
-  echo "    Already exists, skipping."
+  echo "    Already exists, updating env vars..."
+  aws codebuild update-project \
+    --name "${PROJECT_NAME}" \
+    --environment "{
+      \"type\": \"LINUX_CONTAINER\",
+      \"image\": \"aws/codebuild/standard:7.0\",
+      \"computeType\": \"BUILD_GENERAL1_SMALL\",
+      \"environmentVariables\": [
+        {\"name\": \"STATE_BUCKET\", \"value\": \"${STATE_BUCKET}\"},
+        {\"name\": \"LOCK_TABLE\",   \"value\": \"${LOCK_TABLE}\"},
+        {\"name\": \"REGION\",       \"value\": \"${REGION}\"}
+      ]
+    }" \
+    --region "${REGION}" \
+    --no-cli-pager > /dev/null
+  echo "    Env vars updated."
 else
   aws codebuild create-project \
     --name "${PROJECT_NAME}" \
