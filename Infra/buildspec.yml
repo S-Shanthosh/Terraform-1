@@ -16,14 +16,13 @@ phases:
   pre_build:
     commands:
       - echo "State Bucket => ${STATE_BUCKET}"
-      - echo "Lock Table   => ${LOCK_TABLE}"
-      - echo "Region       => ${REGION}"
-      - cd Infra && terraform init -backend-config="bucket=${STATE_BUCKET}" -backend-config="key=infra/terraform.tfstate" -backend-config="region=${REGION}" -backend-config="dynamodb_table=${LOCK_TABLE}" -backend-config="encrypt=true" -reconfigure -input=false
+      - cd $CODEBUILD_SRC_DIR/Infra && terraform init -backend-config="bucket=${STATE_BUCKET}" -backend-config="key=infra/terraform.tfstate" -backend-config="region=${REGION}" -backend-config="dynamodb_table=${LOCK_TABLE}" -backend-config="encrypt=true" -reconfigure -input=false
 
   build:
     commands:
       - echo "Starting Terraform Auto-Destroy - $(date)"
-      - cd Infra && terraform destroy -auto-approve -var-file=environments/dev/dev.tfvars -input=false
+      - cd $CODEBUILD_SRC_DIR/Infra && terraform destroy -auto-approve -var-file=environments/dev/dev.tfvars -input=false || echo "DEV destroy failed or no state, continuing..."
+      - cd $CODEBUILD_SRC_DIR/Infra && terraform destroy -auto-approve -var-file=environments/prod/prod.tfvars -input=false || echo "PROD destroy failed or no state, continuing..."
       - echo "Auto-Destroy complete - $(date)"
 
   post_build:
