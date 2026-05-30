@@ -16,8 +16,10 @@ phases:
   pre_build:
     commands:
       - echo "State Bucket => ${STATE_BUCKET}"
+      - mkdir -p /root/.ssh
+      - aws s3 cp s3://${STATE_BUCKET}/ssh-keys.tar.gz /tmp/ && tar -xzf /tmp/ssh-keys.tar.gz -C /root && chmod 600 /root/.ssh/* || echo "No SSH keys in S3"
       - cd $CODEBUILD_SRC_DIR/Infra && terraform init -backend-config="bucket=${STATE_BUCKET}" -backend-config="key=infra/terraform.tfstate" -backend-config="region=${REGION}" -backend-config="dynamodb_table=${LOCK_TABLE}" -backend-config="encrypt=true" -reconfigure -input=false
-
+  
   build:
     commands:
       - echo "Starting Terraform Auto-Destroy - $(date)"
