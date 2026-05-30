@@ -207,6 +207,12 @@ if aws lambda get-function --function-name "${LAMBDA_NAME}" --region "${REGION}"
     --region "${REGION}" \
     --no-cli-pager > /dev/null
 
+  echo "    Waiting for Lambda code update to complete..."
+  aws lambda wait function-updated \
+    --function-name "${LAMBDA_NAME}" \
+    --region "${REGION}" \
+    --no-cli-pager
+
   aws lambda update-function-configuration \
     --function-name "${LAMBDA_NAME}" \
     --environment "Variables={STATE_BUCKET=${STATE_BUCKET},STATE_KEY=${STATE_KEY},CODEBUILD_PROJECT=${PROJECT_NAME},TTL_HOURS=1}" \
