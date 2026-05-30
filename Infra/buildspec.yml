@@ -23,8 +23,7 @@ phases:
   build:
     commands:
       - echo "Starting Terraform Auto-Destroy - $(date)"
-      - cd Infra && terraform destroy -auto-approve -var-file=environments/dev/dev.tfvars -input=false || echo "DEV destroy failed or no state, continuing..."
-      - cd Infra && terraform destroy -auto-approve -var-file=environments/prod/prod.tfvars -input=false || echo "PROD destroy failed or no state, continuing..."
+      - cd Infra && terraform destroy -auto-approve -var-file=environments/dev/dev.tfvars -input=false
       - echo "Auto-Destroy complete - $(date)"
 
   post_build:
