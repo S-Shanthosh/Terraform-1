@@ -44,19 +44,5 @@ else
   echo "⚠️  No SSH keys in S3 — skipping"
 fi
 
-# Auto-destroy wrapper
-terraform() {
-  if [[ "$*" == *"apply"* ]]; then
-    command terraform "$@"
-    echo "⏰ Auto-destroy scheduled in 1 hour..."
-    nohup bash -c "sleep 3600 && cd $(pwd) && command terraform destroy -auto-approve" \
-      > "$HOME/destroy.log" 2>&1 &
-    echo "✅ Auto-destroy job started. Check ~/destroy.log to confirm."
-  else
-    command terraform "$@"
-  fi
-}
-export -f terraform
-
 echo ""
 echo "✅ Restore complete! Terraform is ready."
