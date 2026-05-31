@@ -132,6 +132,32 @@ resource-cleanup.sh  (run ONCE)
 > ✅ **Idempotent** — safe to re-run. Existing resources are updated, not duplicated.
 > ✅ **Works in any AWS account** — no hardcoded values. Account ID auto-detected, bucket name asked once.
 
+### `teardown.sh` — Full account cleanup
+
+```
+teardown.sh  (run when done)
+│
+├── [1/9] 🔥 terraform destroy          (dev + prod environments)
+├── [2/9] ⏰ Remove EventBridge rule
+├── [3/9] λ  Delete Lambda function
+├── [4/9] 🏗️  Delete CodeBuild project
+├── [5/9] 🔐 Delete IAM roles
+├── [6/9] 🪣 Delete S3 bucket           (handles versioned objects)
+├── [7/9] 🔒 Delete DynamoDB table
+├── [8/9] 🖥️  Clean local files          (Terraform binary, SSH keys)
+└── [9/9] 🔧 Clean .bashrc
+```
+
+> ⚠️ Requires typing `yes` to confirm — no accidental teardown.
+
+### `verify-cleanup.sh` — Verify account is clean
+
+```bash
+bash setup/verify-cleanup.sh
+```
+
+Checks all resources, IAM roles, local files, and `.bashrc` — prints ✅ or ❌ for each. Run after teardown to confirm zero residue.
+
 ---
 
 ## 🔄 Every New CloudShell Session
@@ -215,10 +241,10 @@ terraform destroy -var-file=environments/dev/dev.tfvars -auto-approve
 
 If the auto-destroy pipeline fails or you need to force destroy immediately:
 
-### Option 1 — Trigger CodeBuild directly and watch logs
+### Option 1 — Trigger CodeBuild and watch logs (recommended)
 
 ```bash
-# Step 1: Trigger the destroy build
+# Step 1: Trigger destroy and capture build ID automatically
 BUILD_ID=$(aws codebuild start-build \
   --project-name "terraform-auto-destroy" \
   --region ap-south-1 \
@@ -240,7 +266,7 @@ aws logs get-log-events \
   --output text | tail -60
 ```
 
-### Option 2 — Invoke Lambda to check state and auto-trigger if needed
+### Option 2 — Invoke Lambda to check state
 
 ```bash
 aws lambda invoke \
@@ -256,7 +282,7 @@ echo "--- Lambda Response ---"
 cat /tmp/out.json
 ```
 
-Lambda will return one of:
+Lambda returns one of:
 - `{"status": "skipped", "reason": "no state file"}` — nothing deployed
 - `{"status": "skipped", "reason": "within TTL", "remaining": "0:45:00"}` — resources safe, time remaining shown
 - `{"status": "triggered", "build_id": "terraform-auto-destroy:xxx"}` — CodeBuild destroy started
@@ -270,6 +296,39 @@ terraform destroy -var-file=environments/dev/dev.tfvars -auto-approve
 
 ---
 
+## 🧹 Full Teardown
+
+```bash
+bash setup/teardown.sh
+```
+
+Enter your bucket name when prompted, type `yes` to confirm. All 9 steps run automatically.
+
+**After teardown, verify clean:**
+
+```bash
+bash setup/verify-cleanup.sh
+```
+
+Expected output:
+```
+  ✅  EC2 Instances
+  ✅  S3 Buckets
+  ✅  DynamoDB Tables
+  ✅  Lambda Functions
+  ✅  CodeBuild Projects
+  ✅  EventBridge Rules
+  ✅  IAM Roles (custom)
+  ✅  VPCs (non-default)
+  ✅  Local Terraform binary
+  ✅  SSH keys
+  ✅  .bashrc
+
+  🎉 Account is fully clean!
+```
+
+---
+
 ## 📁 Repository Structure
 
 ```
@@ -278,6 +337,8 @@ Terraform-1/
 ├── 📂 setup/
 │   ├── 🚀 bootstrap.sh          ← Run ONCE per new AWS account
 │   ├── 🧹 resource-cleanup.sh   ← Run ONCE — sets up auto-destroy pipeline
+│   ├── 💣 teardown.sh           ← Full account wipe
+│   ├── ✅ verify-cleanup.sh     ← Verify account is clean
 │   ├── 🔄 tf-start.sh           ← Auto-runs on every session start
 │   └── 💾 tf-save.sh            ← Run before exiting CloudShell
 │
@@ -325,40 +386,8 @@ Keys are backed up to S3 and restored every CloudShell session automatically.
 |--------|-----------|
 | `bootstrap.sh` | Version check, `head-bucket`, `describe-table`, file existence checks |
 | `resource-cleanup.sh` | Checks existence before create, updates env vars if already exists |
+| `teardown.sh` | Uses `|| true` on all deletes — won't fail if already deleted |
 | `.bashrc` config | Sentinel `# __TF_BOOTSTRAP_DONE__` prevents duplicate entries |
-
----
-
-## 🧹 Full Teardown
-
-```bash
-# Delete all Terraform resources first
-cd ~/workspace/Infra
-terraform destroy -var-file=environments/dev/dev.tfvars -auto-approve
-
-# Delete auto-destroy pipeline
-aws events remove-targets --rule "terraform-auto-destroy-hourly" --ids "terraform-state-checker-target" --region ap-south-1
-aws events delete-rule --name "terraform-auto-destroy-hourly" --region ap-south-1
-aws lambda delete-function --function-name terraform-state-checker --region ap-south-1
-aws codebuild delete-project --name terraform-auto-destroy --region ap-south-1
-aws iam detach-role-policy --role-name CodeBuild-TerraformDestroy-Role --policy-arn arn:aws:iam::aws:policy/AdministratorAccess
-aws iam delete-role --role-name CodeBuild-TerraformDestroy-Role
-aws iam detach-role-policy --role-name Lambda-TerraformStateChecker-Role --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-aws iam delete-role-policy --role-name Lambda-TerraformStateChecker-Role --policy-name TerraformStateChecker-Policy
-aws iam delete-role --role-name Lambda-TerraformStateChecker-Role
-
-# Delete state bucket
-aws s3 rm s3://<your-bucket> --recursive
-aws s3api delete-bucket --bucket <your-bucket> --region ap-south-1
-
-# Delete DynamoDB lock table
-aws dynamodb delete-table --table-name <your-bucket>-locks --region ap-south-1
-
-# Clean local environment
-rm -rf ~/workspace ~/bin/terraform /tmp/.terraform
-rm -f ~/.ssh/shanthosh-key ~/.ssh/shanthosh-key.pub
-sed -i '/# __TF_BOOTSTRAP_DONE__/,$ d' ~/.bashrc
-```
 
 ---
 
