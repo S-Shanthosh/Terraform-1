@@ -48,7 +48,7 @@ echo "  Lock Table   : ${LOCK_TABLE}"
 echo ""
 
 # ── Step 1: CodeBuild IAM Role ────────────────────────────────────────────────
-echo "[1/7] Creating CodeBuild IAM Role..."
+echo "[1/6] Creating CodeBuild IAM Role..."
 
 cat > /tmp/codebuild-trust.json << 'EOF'
 {
@@ -80,7 +80,7 @@ aws iam attach-role-policy \
 echo "    AdministratorAccess attached."
 
 # ── Step 2: Lambda IAM Role ───────────────────────────────────────────────────
-echo "[2/7] Creating Lambda IAM Role..."
+echo "[2/6] Creating Lambda IAM Role..."
 
 cat > /tmp/lambda-trust.json << 'EOF'
 {
@@ -137,7 +137,7 @@ aws iam put-role-policy \
 echo "    Policies attached."
 
 # ── Step 3: Lambda Function ───────────────────────────────────────────────────
-echo "[3/7] Deploying Lambda function..."
+echo "[3/6] Deploying Lambda function..."
 
 cat > /tmp/check_and_destroy.py << PYEOF
 import boto3
@@ -237,7 +237,7 @@ fi
 echo "    Lambda deployed."
 
 # ── Step 4: CodeBuild Project ─────────────────────────────────────────────────
-echo "[4/7] Creating CodeBuild project..."
+echo "[4/6] Creating CodeBuild project..."
 
 if aws codebuild batch-get-projects \
     --names "${PROJECT_NAME}" \
@@ -289,7 +289,7 @@ else
 fi
 
 # ── Step 5: EventBridge Rule ──────────────────────────────────────────────────
-echo "[5/7] Creating EventBridge rule..."
+echo "[5/6] Creating EventBridge rule..."
 
 aws events put-rule \
   --name "${RULE_NAME}" \
@@ -301,7 +301,7 @@ aws events put-rule \
 echo "    Rule created."
 
 # ── Step 6: Wire EventBridge → Lambda ────────────────────────────────────────
-echo "[6/7] Wiring EventBridge to Lambda..."
+echo "[6/6] Wiring EventBridge to Lambda..."
 
 aws events put-targets \
   --rule "${RULE_NAME}" \
@@ -324,62 +324,6 @@ aws lambda add-permission \
   --region "${REGION}" \
   --no-cli-pager > /dev/null 2>&1 || true
 echo "    EventBridge → Lambda wired."
-
-# ── Step 7: Update buildspec.yml with dynamic values ─────────────────────────
-echo "[7/7] Updating buildspec.yml with dynamic backend config..."
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BUILDSPEC_FILE="${SCRIPT_DIR}/../Infra/buildspec.yml"
-
-cat > "${BUILDSPEC_FILE}" << BSEOF
-version: 0.2
-
-env:
-  variables:
-    TF_VERSION: "1.7.5"
-    TF_DATA_DIR: "/tmp/.terraform"
-    AWS_DEFAULT_REGION: "${REGION}"
-
-phases:
-  install:
-    commands:
-      - echo "Installing Terraform \${TF_VERSION}"
-      - curl -fsSL https://releases.hashicorp.com/terraform/\${TF_VERSION}/terraform_\${TF_VERSION}_linux_amd64.zip -o /tmp/terraform.zip
-      - unzip -o /tmp/terraform.zip -d /usr/local/bin/
-      - terraform version
-
-  pre_build:
-    commands:
-      - terraform init
-          -backend-config="bucket=${STATE_BUCKET}"
-          -backend-config="key=${STATE_KEY}"
-          -backend-config="region=${REGION}"
-          -backend-config="dynamodb_table=${LOCK_TABLE}"
-          -backend-config="encrypt=true"
-          -reconfigure
-          -input=false
-    working_directory: Infra
-
-  build:
-    commands:
-      - echo "=========================================="
-      - echo "Starting Terraform Auto-Destroy - \$(date)"
-      - echo "=========================================="
-      - echo "--- Destroying DEV environment ---"
-      - terraform destroy -auto-approve -var-file=environments/dev/dev.tfvars -input=false || echo "DEV destroy failed or no state, continuing..."
-      - echo "--- Destroying PROD environment ---"
-      - terraform destroy -auto-approve -var-file=environments/prod/prod.tfvars -input=false || echo "PROD destroy failed or no state, continuing..."
-      - echo "=========================================="
-      - echo "Auto-Destroy complete - \$(date)"
-      - echo "=========================================="
-    working_directory: Infra
-
-  post_build:
-    commands:
-      - echo "Build status - \${CODEBUILD_BUILD_SUCCEEDING}"
-BSEOF
-
-echo "    buildspec.yml updated."
 
 # ── Summary ───────────────────────────────────────────────────────────────────
 echo ""
