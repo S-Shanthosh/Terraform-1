@@ -15,7 +15,7 @@ resource "aws_instance" "practice-ec2" {
 instance_type = "t2.micro"
 ami = "ami-0f58b397bc5c1f2e8"
 key_name = aws_key_pair.shanthosh_key.key_name
-vpc_security_group_ids = [aws_security_group.practice-sg.id]
+vpc_security_group_ids = [aws_security_group.practice_sg.id]
 
 tags = {
     Name= "practice-ec2"
@@ -30,7 +30,7 @@ resource "aws_key_pair" "shanthosh_key" {
 }
 
 
-resource "aws_security_group" "practice-sg" {
+resource "aws_security_group" "practice_sg" {
     name = "practice-sg"
     description = "Allow SSH"
 
