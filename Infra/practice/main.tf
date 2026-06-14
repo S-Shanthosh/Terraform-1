@@ -9,3 +9,21 @@ tags = {
     Name = "practice-vpc"
 }
 }
+
+
+resource "aws_instance" "practice-ec2" {
+instance_type = "t2.micro"
+ami = "ami-0f58b397bc5c1f2e8"
+key_name = aws_key_pair.shanthosh_key.key_name
+
+tags = {
+    Name= "practice-ec2"
+    Owner = "Shanthosh"
+    App = "practice-app"
+}
+}
+
+resource "aws_key_pair" "shanthosh_key" {
+    key_name = "shanthosh-key"
+    public_key = file("~/.ssh/shanthosh-key.pub")
+}
